@@ -234,6 +234,15 @@
     <button class="lb-btn lb-btn-sm"><TMPL_VAR BASIC.DEMO_ACTION></button>
     <button class="lb-btn lb-btn-danger"><TMPL_VAR BASIC.BTN_CLOSE></button>
 </div>
+<p><TMPL_VAR BASIC.DESC_BUTTON_ICON></p>
+<pre style="background:#f4f4f4;padding:0.8em 1em;border-radius:4px;overflow-x:auto;font-size:0.85em;margin-bottom:0.8em;"><code>&lt;button class="lb-btn lb-btn-icon"&gt;&lt;i class="pi pi-cog"&gt;&lt;/i&gt; Aktion&lt;/button&gt;
+&lt;button class="lb-btn lb-btn-primary lb-btn-icon"&gt;&lt;i class="pi pi-save"&gt;&lt;/i&gt; Speichern&lt;/button&gt;
+&lt;button class="lb-btn lb-btn-sm lb-btn-icon"&gt;&lt;i class="pi pi-trash"&gt;&lt;/i&gt; Loeschen&lt;/button&gt;</code></pre>
+<div style="display:flex; flex-wrap:wrap; gap:0.5em; align-items:center; margin-bottom:1.5em;">
+    <button class="lb-btn lb-btn-icon"><i class="pi pi-cog"></i> <TMPL_VAR BASIC.DEMO_ACTION></button>
+    <button class="lb-btn lb-btn-primary lb-btn-icon"><i class="pi pi-save"></i> <TMPL_VAR BASIC.BTN_SAVE></button>
+    <button class="lb-btn lb-btn-sm lb-btn-icon"><i class="pi pi-trash"></i> <TMPL_VAR BASIC.BTN_CLOSE></button>
+</div>
 
 
 <!-- ============================================================ GROUPING / COLLAPSIBLE -->
@@ -318,9 +327,11 @@
 &lt;/button&gt;
 
 &lt;dialog class="lb-modal" id="demo-modal"&gt;
-    &lt;h3&gt;Modal-Titel&lt;/h3&gt;
-    &lt;p&gt;Inhalt des Modals.&lt;/p&gt;
-    &lt;div style="display:flex;gap:8px;justify-content:flex-end"&gt;
+    &lt;div class="lb-modal-header"&gt;
+        &lt;h2&gt;Modal-Titel&lt;/h2&gt;
+    &lt;/div&gt;
+    &lt;div class="lb-modal-content"&gt;
+        &lt;p&gt;Inhalt des Modals.&lt;/p&gt;
         &lt;button class="lb-btn lb-btn-sm"
                 onclick="document.getElementById('demo-modal').close()"&gt;Schließen&lt;/button&gt;
     &lt;/div&gt;
@@ -328,9 +339,11 @@
 <button class="lb-btn" onclick="document.getElementById('demo-modal').showModal()"><TMPL_VAR BASIC.BTN_OPEN_MODAL></button>
 
 <dialog class="lb-modal" id="demo-modal">
-    <h3><TMPL_VAR BASIC.MODAL_TITLE></h3>
-    <p><TMPL_VAR BASIC.MODAL_TEXT></p>
-    <div style="display:flex;gap:8px;justify-content:flex-end">
+    <div class="lb-modal-header">
+        <h2><TMPL_VAR BASIC.MODAL_TITLE></h2>
+    </div>
+    <div class="lb-modal-content">
+        <p><TMPL_VAR BASIC.MODAL_TEXT></p>
         <button class="lb-btn lb-btn-sm"
                 onclick="document.getElementById('demo-modal').close()"><TMPL_VAR BASIC.BTN_CLOSE></button>
     </div>
