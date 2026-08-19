@@ -19,3 +19,6 @@ uninstall/uninstall text eol=lf
 sudoers/sudoers     text eol=lf
 dpkg/apt            text eol=lf
 cron/*              text eol=lf
+
+# Healthcheck (no file extension)
+bin/healthcheck     text eol=lf

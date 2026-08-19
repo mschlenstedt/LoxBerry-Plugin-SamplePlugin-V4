@@ -1,0 +1,130 @@
+#!/bin/bash
+
+# bin/healthcheck - Example healthcheck for a LoxBerry plugin.
+#
+# WHAT THIS IS
+# ------------
+# If a plugin ships an executable file named exactly "healthcheck" in its bin/
+# directory, LoxBerry picks it up automatically - no registration anywhere. It
+# then appears as one row in  My LoxBerry / Healthcheck , is run once a day by
+# cron and shortly after every reboot, and if it reports an ERROR the user gets
+# a notification (and an email, if configured). See the developer wiki:
+# "Integrate your plugin to LoxBerry's healthcheck".
+#
+# The core calls this file twice, with one argument:
+#
+#   healthcheck title   -> print only the description, do NOT run the check
+#   healthcheck check   -> run the check and print the full result
+#
+# HOW TO ANSWER
+# -------------
+# Two output formats are accepted; this example uses the simple line-by-line
+# form (one value per line, in this fixed order):
+#
+#   line 1  desc     short description of the check
+#   line 2  status   numeric status code (see below)
+#   line 3  result   short result text, shown in the row and sent in the mail
+#   line 4  url      (optional) a help link, rendered as a "Wiki" button
+#   line 5  logfile  (optional) path to a logfile, rendered as a "Logfile"
+#                    button; its content is also attached to the report
+#
+# The JSON form is equivalent and is what larger checks tend to use:
+#   { "desc":"...", "status":5, "result":"...",
+#     "url":"https://...", "logfile":"/opt/loxberry/log/plugins/<folder>/x.log" }
+#
+# STATUS CODES  (the WORST, i.e. the LOWEST number, wins if you combine checks)
+#   3 = ERROR    red    - a real fault that needs the user; triggers a mail
+#   4 = WARNING  yellow - suspect, but not certainly broken; no mail
+#   5 = OK       green  - all fine
+#   6 = INFO     blue   - not a check, just information
+#
+# RULES OF THUMB
+#   - Keep it short. Both the row and the notification mail are tight on space.
+#   - Keep it quick (a few seconds). Redirect any output of commands you call
+#     to /dev/null so ONLY the lines above end up on stdout.
+#   - Do NOT fix anything here - the user would never notice the problem.
+#   - Keep desc/result on a SINGLE line each (no CR/LF inside them).
+#
+# NOTE ON url/logfile: passing these two through for a *plugin* healthcheck was
+# added to the core in a later release. On an older LoxBerry the extra lines are
+# simply ignored, so this script stays safe there - the check still works, only
+# the two buttons do not appear.
+
+# --- Work out where we are, without hardcoding the plugin folder -------------
+# The install folder is dynamic (LoxBerry may append 01, 02, ... on a name
+# clash), so never hardcode it. Deriving it from our own path is robust and
+# even survives sudo, which strips the LoxBerry environment variables.
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+PLUGINFOLDER="$(basename "$SCRIPT_DIR")"           # e.g. sampleplugin_folder
+LBHOMEDIR="${SCRIPT_DIR%/bin/plugins/*}"           # e.g. /opt/loxberry
+
+DESC="Shows this LoxBerry's uptime and load"
+
+# --- title: description only, return immediately -----------------------------
+if [ "$1" = "title" ]; then
+	echo "$DESC"
+	exit 0
+fi
+
+# --- check: gather the numbers ----------------------------------------------
+# Uptime in whole seconds from /proc/uptime (first field), formatted short.
+UP_SECONDS="$(cut -d. -f1 /proc/uptime)"
+UP_HUMAN="$(awk -v s="$UP_SECONDS" 'BEGIN{
+	d=int(s/86400); h=int((s%86400)/3600); m=int((s%3600)/60);
+	if(d>0) printf "%dd %dh", d, h; else if(h>0) printf "%dh %dm", h, m; else printf "%dm", m;
+}')"
+
+# Load averages from /proc/loadavg (1, 5, 15 minutes) and the core count.
+read -r LOAD1 LOAD5 LOAD15 _ < /proc/loadavg
+CORES="$(nproc 2>/dev/null || echo 1)"
+
+# Load per core over the last 15 minutes - the figure that says whether the box
+# is actually busy, independent of how many cores it has.
+LOAD_PER_CORE="$(awk -v l="$LOAD15" -v c="$CORES" 'BEGIN{ printf "%.2f", (c>0)? l/c : l }')"
+
+# --- decide the status -------------------------------------------------------
+# A load of more than 1.5x the core count, sustained over 15 minutes, is worth a
+# WARNING; anything below is OK. (Uptime alone is purely informational.)
+if awk -v x="$LOAD_PER_CORE" 'BEGIN{ exit !(x > 1.5) }'; then
+	STATUS=4
+	RESULT="Up ${UP_HUMAN}, load ${LOAD15} (${LOAD_PER_CORE}/core) - system is busy"
+else
+	STATUS=5
+	RESULT="Up ${UP_HUMAN}, load ${LOAD15} (${LOAD_PER_CORE}/core)"
+fi
+
+# --- write the detail logfile (the "Logfile" button links here) --------------
+# The result line has to stay short, so the details go into a logfile under this
+# plugin's own log directory. log/ is a RAM disk, and we overwrite the file each
+# run ('>'), so it never grows. Restricting the path to log/plugins/<folder>/
+# keeps us inside our own plugin - a good habit even where the core does not
+# enforce it.
+LOGDIR="$LBHOMEDIR/log/plugins/$PLUGINFOLDER"
+LOGFILE="$LOGDIR/healthcheck.log"
+mkdir -p "$LOGDIR" 2>/dev/null
+{
+	printf '%s
+' "Healthcheck detail - $(date '+%Y-%m-%d %H:%M:%S')"
+	printf '%-12s: %s
+' "Uptime"    "${UP_HUMAN} (${UP_SECONDS} s)"
+	printf '%-12s: %s
+' "Booted"    "$(date -d "-${UP_SECONDS} seconds" '+%Y-%m-%d %H:%M:%S' 2>/dev/null)"
+	printf '%-12s: %s
+' "Load 1/5/15" "${LOAD1} / ${LOAD5} / ${LOAD15}"
+	printf '%-12s: %s
+' "Cores"     "${CORES}"
+	printf '%-12s: %s
+' "Load/core" "${LOAD_PER_CORE} (15 min)"
+} > "$LOGFILE" 2>/dev/null
+
+# A help link for the row. Point it wherever your plugin's documentation lives.
+URL="https://wiki.loxberry.de/konfiguration/widget_help/widget_my_loxberry/healthcheck"
+
+# --- answer: the five lines --------------------------------------------------
+echo "$DESC"      # line 1: description
+echo "$STATUS"    # line 2: status code
+echo "$RESULT"    # line 3: result text
+echo "$URL"       # line 4: help URL      (optional)
+echo "$LOGFILE"   # line 5: logfile path  (optional)
+
+exit 0
